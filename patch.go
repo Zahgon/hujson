@@ -4,14 +4,6 @@
 
 package hujson
 
-import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"reflect"
-	"strings"
-)
-
 // TODO(dsnet): Insert/remove operations on an array has O(n) complexity
 // where n is the length of the array. We could improve this with more clever
 // data structure that has efficient insertion, deletion, and indexing.
@@ -43,29 +35,7 @@ import (
 //
 // It does not format the value. It is recommended that Format be called after
 // applying a patch.
-func (v *Value) Patch(patch []byte) error {
-	ops, err := parsePatch(patch)
-	if err != nil {
-		return err
-	}
-	for i, op := range ops {
-		var err error
-		switch op.op {
-		case "add":
-			err = v.patchAdd(i, op)
-		case "remove", "replace":
-			err = v.patchRemoveOrReplace(i, op)
-		case "move", "copy":
-			err = v.patchMoveOrCopy(i, op)
-		case "test":
-			err = v.patchTest(i, op)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+func (v *Value) Patch(patch []byte) error { _ = "STUB: not implemented"; return nil }
 
 type patchOperation struct {
 	op    string // "add" | "remove" | "replace" | "move" | "copy" | "test"
@@ -74,208 +44,71 @@ type patchOperation struct {
 	value Value  // used by "add", "replace", and "test"
 }
 
-func parsePatch(patch []byte) ([]patchOperation, error) {
-	v, err := Parse(patch)
-	if err != nil {
-		return nil, err
-	}
-	arr, ok := v.Value.(*Array)
-	if !ok {
-		return nil, fmt.Errorf("hujson: patch must be a JSON array")
-	}
-	var ops []patchOperation
-	for i, e := range arr.Elements {
-		obj, ok := e.Value.(*Object)
-		if !ok {
-			return nil, fmt.Errorf("hujson: patch operation %d: must be a JSON object", i)
-		}
-		seen := make(map[string]bool)
-		var op patchOperation
-		for j, m := range obj.Members {
-			name := m.Name.Value.(Literal).String()
-			if seen[name] {
-				return nil, fmt.Errorf("hujson: patch operation %d: duplicate name %q", i, m.Name.Value)
-			}
-			seen[name] = true
-			switch name {
-			case "op":
-				if m.Value.Value.Kind() != '"' {
-					return nil, fmt.Errorf("hujson: patch operation %d: member %q must be a JSON string", i, name)
-				}
-				switch opType := m.Value.Value.(Literal).String(); opType {
-				case "add", "remove", "replace", "move", "copy", "test":
-					op.op = opType
-				default:
-					return nil, fmt.Errorf("hujson: patch operation %d: unknown operation %q", i, m.Value.Value)
-				}
-			case "path":
-				if m.Value.Value.Kind() != '"' {
-					return nil, fmt.Errorf("hujson: patch operation %d: member %q must be a JSON string", i, name)
-				}
-				op.path = m.Value.Value.(Literal).String()
-			case "from":
-				if m.Value.Value.Kind() != '"' {
-					return nil, fmt.Errorf("hujson: patch operation %d: member %q must be a JSON string", i, name)
-				}
-				op.from = m.Value.Value.(Literal).String()
-			case "value":
-				m.Value.BeforeExtra = obj.beforeExtraAt(j + 0).extractLeadingComments(true)
-				m.Value.AfterExtra = obj.beforeExtraAt(j + 1).extractTrailingcomments(true)
-				op.value = m.Value
-			}
-		}
-		switch {
-		case !seen["op"]:
-			return nil, fmt.Errorf("hujson: patch operation %d: missing required member %q", i, "op")
-		case !seen["path"]:
-			return nil, fmt.Errorf("hujson: patch operation %d: missing required member %q", i, "path")
-		case !seen["from"] && (op.op == "move" || op.op == "copy"):
-			return nil, fmt.Errorf("hujson: patch operation %d: missing required member %q", i, "from")
-		case !seen["value"] && (op.op == "add" || op.op == "replace" || op.op == "test"):
-			return nil, fmt.Errorf("hujson: patch operation %d: missing required member %q", i, "value")
-		}
-		ops = append(ops, op)
-	}
-	return ops, nil
-}
+func parsePatch(patch []byte) ([]patchOperation, error) { _ = "STUB: not implemented"; return nil, nil }
 
-func (v *Value) patchAdd(i int, op patchOperation) error {
-	s, err := v.find(findState{pointer: op.path})
-	if err != nil && (err != errNotFound || len(s.pointer) != s.offset) {
-		return fmt.Errorf("hujson: patch operation %d: %v", i, err)
-	}
-	if s.parent == nil {
-		*v = op.value // only occurs for root
-	} else {
-		switch comp := s.parent.(type) {
-		case *Object:
-			if s.idx < comp.length() {
-				replaceAt(comp, s.idx, op.value)
-			} else {
-				insertAt(comp, s.idx, op.value)
-				comp.Members[s.idx].Name.Value = String(s.name)
-			}
-		case *Array:
-			insertAt(comp, s.idx, op.value)
-		}
-	}
-	return nil
-}
+func (v *Value) patchAdd(i int, op patchOperation) error { _ = "STUB: not implemented"; return nil }
+
+// only occurs for root
 
 func (v *Value) patchRemoveOrReplace(i int, op patchOperation) error {
-	s, err := v.find(findState{pointer: op.path})
-	if err != nil {
-		return fmt.Errorf("hujson: patch operation %d: %v", i, err)
-	}
-	if s.parent == nil {
-		return fmt.Errorf("hujson: patch operation %d: cannot %s root value", i, op.op)
-	}
-	switch op.op {
-	case "remove":
-		removeAt(s.parent, s.idx)
-	case "replace":
-		replaceAt(s.parent, s.idx, op.value)
-	}
+	_ = "STUB: not implemented"
 	return nil
 }
 
 func (v *Value) patchMoveOrCopy(i int, op patchOperation) error {
-	if op.from == "" || (op.op == "move" && hasPathPrefix(op.path, op.from)) {
-		return fmt.Errorf("hujson: patch operation %d: cannot %s %q into %q", i, op.op, op.from, op.path)
-	}
-	sFrom, err := v.find(findState{pointer: op.from})
-	if err != nil {
-		return fmt.Errorf("hujson: patch operation %d: %v", i, err)
-	}
-	// TODO(dsnet): For a move operation within the same object,
-	// we should simplify this as just a rename or replace.
-	switch op.op {
-	case "move":
-		op.value = removeAt(sFrom.parent, sFrom.idx)
-	case "copy":
-		op.value = copyAt(sFrom.parent, sFrom.idx)
-	}
-	return v.patchAdd(i, op)
-}
-
-func (v *Value) patchTest(i int, op patchOperation) error {
-	s, err := v.find(findState{pointer: op.path})
-	if err != nil {
-		return fmt.Errorf("hujson: patch operation %d: %v", i, err)
-	}
-	if !equalValue(*s.value, op.value) {
-		return fmt.Errorf("hujson: patch operation %d: values differ at %q", i, op.path)
-
-	}
+	_ = "STUB: not implemented"
 	return nil
 }
 
+// TODO(dsnet): For a move operation within the same object,
+// we should simplify this as just a rename or replace.
+
+func (v *Value) patchTest(i int, op patchOperation) error { _ = "STUB: not implemented"; return nil }
+
 // hasPathPrefix is a stricter version of strings.HasPrefix where
 // the prefix must end on a path segment boundary.
-func hasPathPrefix(s, prefix string) bool {
-	if strings.HasPrefix(s, prefix) {
-		return len(s) == len(prefix) || s[len(prefix)] == '/'
-	}
+func hasPathPrefix(s, prefix string) bool { _ = "STUB: not implemented"; return false }
+
+func equalValue(x, y Value) bool {
+	_ = "STUB: not implemented"
+	// TODO(dsnet): This definition of equality is both naive and slow.
+	//   - It fails to properly compare strings with invalid UTF-8.
+	//   - It fails to precisely compare integers beyond ±2⁵³.
+	//   - It cannot handle values greater than ±math.MaxFloat64.
+	//   - Comparison of objects with duplicate names has undefined behavior.
 	return false
 }
 
-func equalValue(x, y Value) bool {
-	// TODO(dsnet): This definition of equality is both naive and slow.
-	//	* It fails to properly compare strings with invalid UTF-8.
-	//	* It fails to precisely compare integers beyond ±2⁵³.
-	//	* It cannot handle values greater than ±math.MaxFloat64.
-	//	* Comparison of objects with duplicate names has undefined behavior.
-	unmarshal := func(v Value) (vi interface{}) {
-		v = v.Clone()
-		v.Standardize()
-		if json.Unmarshal(v.Pack(), &vi) != nil {
-			return nil
-		}
-		return vi
-	}
-	vx := unmarshal(x)
-	vy := unmarshal(y)
-	return reflect.DeepEqual(vx, vy) && vx != nil && vy != nil
-}
+func (obj *Object) getAt(i int) ValueTrimmed { _ = "STUB: not implemented"; return *new(ValueTrimmed) }
 
-func (obj *Object) getAt(i int) ValueTrimmed {
-	return obj.Members[i].Value.Value
-}
-func (obj *Object) setAt(i int, v ValueTrimmed) {
-	obj.Members[i].Value.Value = v
-}
+func (obj *Object) setAt(i int, v ValueTrimmed) { _ = "STUB: not implemented"; return }
+
 func (obj *Object) insertAt(i int, v ValueTrimmed) {
+	_ = "STUB: not implemented"
 	// TODO(dsnet): Use slices.Insert. See https://golang.org/issue/45955.
-	obj.Members = append(obj.Members, ObjectMember{})
-	copy(obj.Members[i+1:], obj.Members[i:])
-	obj.Members[i] = ObjectMember{Value: Value{Value: v}}
-}
-func (obj *Object) removeAt(i int) ValueTrimmed {
-	// TODO(dsnet): Use slices.Delete. See https://golang.org/issue/45955.
-	v := obj.Members[i].Value.Value
-	copy(obj.Members[i:], obj.Members[i+1:])
-	obj.Members = obj.Members[:obj.length()-1]
-	return v
+	return
 }
 
-func (arr *Array) getAt(i int) ValueTrimmed {
-	return arr.Elements[i].Value
-}
-func (arr *Array) setAt(i int, v ValueTrimmed) {
-	arr.Elements[i].Value = v
-}
-func (arr *Array) insertAt(i int, v ValueTrimmed) {
-	// TODO(dsnet): Use slices.Insert. See https://golang.org/issue/45955.
-	arr.Elements = append(arr.Elements, ArrayElement{})
-	copy(arr.Elements[i+1:], arr.Elements[i:])
-	arr.Elements[i] = ArrayElement{Value: v}
-}
-func (arr *Array) removeAt(i int) ValueTrimmed {
+func (obj *Object) removeAt(i int) ValueTrimmed {
+	_ = "STUB: not implemented"
 	// TODO(dsnet): Use slices.Delete. See https://golang.org/issue/45955.
-	v := arr.Elements[i].Value
-	copy(arr.Elements[i:], arr.Elements[i+1:])
-	arr.Elements = arr.Elements[:arr.length()-1]
-	return v
+	return *new(ValueTrimmed)
+}
+
+func (arr *Array) getAt(i int) ValueTrimmed { _ = "STUB: not implemented"; return *new(ValueTrimmed) }
+
+func (arr *Array) setAt(i int, v ValueTrimmed) { _ = "STUB: not implemented"; return }
+
+func (arr *Array) insertAt(i int, v ValueTrimmed) {
+	_ = "STUB: not implemented"
+	// TODO(dsnet): Use slices.Insert. See https://golang.org/issue/45955.
+	return
+}
+
+func (arr *Array) removeAt(i int) ValueTrimmed {
+	_ = "STUB: not implemented"
+	// TODO(dsnet): Use slices.Delete. See https://golang.org/issue/45955.
+	return *new(ValueTrimmed)
 }
 
 // Preserving and moving comments is impossible to perform reasonably in all
@@ -326,94 +159,39 @@ func (arr *Array) removeAt(i int) ValueTrimmed {
 // strongly associated with just "name1" or the entire sequence of members
 // from "name1" to "name2".
 
-func copyAt(comp composite, i int) (v Value) {
-	v.BeforeExtra = comp.beforeExtraAt(i + 0).extractLeadingComments(true)
-	v.AfterExtra = comp.beforeExtraAt(i + 1).extractTrailingcomments(true)
-	v.Value = comp.getAt(i).clone()
-	return v
-}
-func replaceAt(comp composite, i int, v Value) {
-	comp.beforeExtraAt(i + 0).injectLeadingComments(v.BeforeExtra)
-	comp.beforeExtraAt(i + 1).injectTrailingComments(v.AfterExtra)
-	comp.setAt(i, v.Value)
-}
-func insertAt(comp composite, i int, v Value) {
-	comp.insertAt(i, v.Value)
-	trailing := comp.beforeExtraAt(i + 1).extractTrailingcomments(false)
-	comp.beforeExtraAt(i + 0).injectTrailingComments(trailing)
-	comp.beforeExtraAt(i + 0).injectLeadingComments(v.BeforeExtra)
-	comp.beforeExtraAt(i + 1).injectTrailingComments(v.AfterExtra)
-}
-func removeAt(comp composite, i int) (v Value) {
-	v.BeforeExtra = comp.beforeExtraAt(i + 0).extractLeadingComments(false)
-	v.AfterExtra = comp.beforeExtraAt(i + 1).extractTrailingcomments(false)
-	if trailing := *comp.beforeExtraAt(i + 0); trailing.hasComment() {
-		leading := *comp.beforeExtraAt(i + 1)
-		leading = leading[consumeWhitespace(leading):]
-		*comp.beforeExtraAt(i + 1) = append(trailing, leading...)
-	}
-	v.Value = comp.removeAt(i)
-	return v
-}
+func copyAt(comp composite, i int) (v Value) { _ = "STUB: not implemented"; return *new(Value) }
+
+func replaceAt(comp composite, i int, v Value) { _ = "STUB: not implemented"; return }
+
+func insertAt(comp composite, i int, v Value) { _ = "STUB: not implemented"; return }
+
+func removeAt(comp composite, i int) (v Value) { _ = "STUB: not implemented"; return *new(Value) }
 
 // injectLeadingComments injects leading comments into the bottom of b.
-func (b *Extra) injectLeadingComments(leading Extra) {
-	if len(leading) > 0 {
-		_, currStart := b.classifyComments()
-		blankLen := consumeWhitespace((*b)[currStart:])
-		*b = (*b)[:currStart+blankLen]
-		leading = leading[consumeWhitespace(leading):]
-		if len(leading) > 0 {
-			if i := bytes.LastIndexByte(*b, '\n'); i < 0 || (*b)[i:].hasComment() {
-				*b = append(*b, newline...)
-			}
-			*b = append(*b, leading...)
-		}
-	}
-}
+func (b *Extra) injectLeadingComments(leading Extra) { _ = "STUB: not implemented"; return }
 
 // extractLeadingComments extracts leading comments from the bottom of b.
 // If readonly, then the source is not mutated.
 func (b *Extra) extractLeadingComments(readonly bool) (leading Extra) {
-	_, currStart := b.classifyComments()
-	blankLen := consumeWhitespace((*b)[currStart:])
-	leading = copyBytes((*b)[currStart+blankLen:])
-	if !readonly {
-		*b = (*b)[:currStart+blankLen]
-	}
-	return leading
+	_ = "STUB: not implemented"
+	return *new(Extra)
 }
 
 // injectTrailingComments injects trailing comments into the top of b.
-func (b *Extra) injectTrailingComments(trailing Extra) {
-	if len(trailing) > 0 {
-		prevEnd, _ := b.classifyComments()
-		if bytes.HasSuffix((*b)[:prevEnd], newline) {
-			prevEnd-- // preserve trailing newline
-		}
-		*b = (*b)[prevEnd:]
-		if trailing.hasComment() {
-			if bytes.HasSuffix(trailing, newline) && bytes.HasPrefix(*b, newline) {
-				trailing = trailing[:len(trailing)-1] // drop trailing newline
-			}
-			*b = append(copyBytes(trailing), *b...)
-		}
-	}
-}
+func (b *Extra) injectTrailingComments(trailing Extra) { _ = "STUB: not implemented"; return }
+
+// preserve trailing newline
+
+// drop trailing newline
 
 // extractTrailingcomments extracts trailing comments from the top of b.
 // If readonly, then the source is not mutated.
 func (b *Extra) extractTrailingcomments(readonly bool) (trailing Extra) {
-	prevEnd, _ := b.classifyComments()
-	trailing = copyBytes((*b)[:prevEnd])
-	if !readonly {
-		if bytes.HasSuffix(trailing, newline) {
-			prevEnd-- // preserve trailing newline
-		}
-		*b = (*b)[prevEnd:]
-	}
-	return trailing
+	_ = "STUB: not implemented"
+	return *new(Extra)
 }
+
+// preserve trailing newline
 
 // classifyComments classifies comments as belonging to the previous element
 // or belonging to the current element such that:
@@ -422,42 +200,14 @@ func (b *Extra) extractTrailingcomments(readonly bool) (trailing Extra) {
 //
 // Invariant: prevEnd <= currStart
 func (b Extra) classifyComments() (prevEnd, currStart int) {
+	_ = "STUB: not implemented"
 	// Scan for dividers between comment blocks.
-	var firstDivider, lastDivider, numDividers int
-	var n, prevNewline int
-	for len(b) > n {
-		nw := consumeWhitespace(b[n:])
-		if prevNewline+bytes.Count(b[n:][:nw], newline) >= 2 {
-			if numDividers == 0 {
-				firstDivider = n
-			}
-			lastDivider = n
-			numDividers++
-		}
-		n += nw
-
-		nc := consumeComment(b[n:])
-		if nc <= 0 {
-			break
-		}
-		prevNewline = 0
-		if bytes.HasSuffix(b[n:][:nc], newline) {
-			prevNewline = 1 // adjust newline accounting for next iteration
-		}
-		n += nc
-	}
-
-	// Without dividers, a line comment starting on the first line belongs
-	// to the previous element.
-	if numDividers == 0 {
-		nw := consumeWhitespace(b)
-		nc := consumeComment(b[nw:])
-		if n = nw + nc; bytes.Count(b[:n], newline) == 1 && bytes.HasSuffix(b[:n], lineCommentEnd) {
-			return n, n
-		}
-		return 0, 0
-	}
-
-	// Ownership is more clear when there is at least one divider.
-	return firstDivider, lastDivider
+	return 0, 0
 }
+
+// adjust newline accounting for next iteration
+
+// Without dividers, a line comment starting on the first line belongs
+// to the previous element.
+
+// Ownership is more clear when there is at least one divider.

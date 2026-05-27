@@ -89,13 +89,7 @@
 package hujson
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"iter"
-	"math"
-	"strconv"
-	"unicode/utf8"
 )
 
 // Kind reports the kind of the JSON value.
@@ -138,45 +132,18 @@ type Value struct {
 }
 
 // Clone returns a deep copy of the value.
-func (v Value) Clone() Value {
-	v.BeforeExtra = copyBytes(v.BeforeExtra)
-	v.Value = v.Value.clone()
-	v.AfterExtra = copyBytes(v.AfterExtra)
-	return v
-}
+func (v Value) Clone() Value { _ = "STUB: not implemented"; return *new(Value) }
 
 // Range iterates through a Value in depth-first order and
 // calls f for each value (including the root value).
 // It stops iteration when f returns false.
 //
 // Deprecated: Use [All] instead.
-func (v *Value) Range(f func(v *Value) bool) bool {
-	for v2 := range v.All() {
-		if !f(v2) {
-			return false
-		}
-	}
-	return true
-}
+func (v *Value) Range(f func(v *Value) bool) bool { _ = "STUB: not implemented"; return false }
 
 // All returns an iterator over all values in depth-first order,
 // starting with v itself.
-func (v *Value) All() iter.Seq[*Value] {
-	return func(yield func(*Value) bool) {
-		if !yield(v) {
-			return
-		}
-		if comp, ok := v.Value.(composite); ok {
-			for v2 := range comp.allValues() {
-				for v3 := range v2.All() {
-					if !yield(v3) {
-						return
-					}
-				}
-			}
-		}
-	}
-}
+func (v *Value) All() iter.Seq[*Value] { _ = "STUB: not implemented"; return nil }
 
 // ValueTrimmed is a JSON value without surrounding whitespace or comments.
 // This is a sum type consisting of Literal, *Object, or *Array.
@@ -200,163 +167,72 @@ var (
 type Literal []byte // e.g., null, false, true, "string", or 3.14159
 
 // Bool constructs a JSON literal for a boolean.
-func Bool(v bool) Literal {
-	if v {
-		return Literal("true")
-	} else {
-		return Literal("false")
-	}
-}
+func Bool(v bool) Literal { _ = "STUB: not implemented"; return *new(Literal) }
 
 // String constructs a JSON literal for string.
 // Invalid UTF-8 is mangled with the Unicode replacement character.
 func String(v string) Literal {
+	_ = "STUB: not implemented"
 	// Format according to RFC 8785, section 3.2.2.2.
-	b := make([]byte, 0, len(`"`)+len(v)+len(`"`))
-	b = append(b, '"')
-	var arr [utf8.UTFMax]byte
-	for _, r := range v {
-		switch {
-		case r < ' ' || r == '\\' || r == '"':
-			switch r {
-			case '\b':
-				b = append(b, `\b`...)
-			case '\t':
-				b = append(b, `\t`...)
-			case '\n':
-				b = append(b, `\n`...)
-			case '\f':
-				b = append(b, `\f`...)
-			case '\r':
-				b = append(b, `\r`...)
-			case '\\':
-				b = append(b, `\\`...)
-			case '"':
-				b = append(b, `\"`...)
-			default:
-				b = append(b, fmt.Sprintf(`\u%04x`, r)...)
-			}
-		default:
-			b = append(b, arr[:utf8.EncodeRune(arr[:], r)]...)
-		}
-	}
-	b = append(b, '"')
-	return Literal(b)
+	return *new(Literal)
 }
 
 // Int construct a JSON literal for a signed integer.
-func Int(v int64) Literal {
-	return Literal(strconv.AppendInt(nil, v, 10))
-}
+func Int(v int64) Literal { _ = "STUB: not implemented"; return *new(Literal) }
 
 // Uint construct a JSON literal for an unsigned integer.
-func Uint(v uint64) Literal {
-	return Literal(strconv.AppendUint(nil, v, 10))
-}
+func Uint(v uint64) Literal { _ = "STUB: not implemented"; return *new(Literal) }
 
 // Float construct a JSON literal for a floating-point number.
 // The values NaN, +Inf, and -Inf will be represented as a JSON string
 // with the values "NaN", "Infinity", and "-Infinity".
-func Float(v float64) Literal {
-	switch {
-	case math.IsNaN(v):
-		return Literal(`"NaN"`)
-	case math.IsInf(v, +1):
-		return Literal(`"Infinity"`)
-	case math.IsInf(v, -1):
-		return Literal(`"-Infinity"`)
-	default:
-		b, _ := json.Marshal(v)
-		return Literal(b)
-	}
-}
+func Float(v float64) Literal { _ = "STUB: not implemented"; return *new(Literal) }
 
-func (b Literal) clone() ValueTrimmed {
-	return Literal(copyBytes(b))
-}
+func (b Literal) clone() ValueTrimmed { _ = "STUB: not implemented"; return *new(ValueTrimmed) }
 
 // Kind represents each possible JSON literal kind with a single byte,
 // which is conveniently the first byte of that kind's grammar
 // with the restriction that numbers always be represented with '0'.
-func (b Literal) Kind() Kind {
-	if len(b) == 0 {
-		return 0
-	}
-	switch k := b[0]; k {
-	case 'n', 'f', 't', '"':
-		return Kind(k)
-	case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		return '0'
-	default:
-		return 0
-	}
-}
+func (b Literal) Kind() Kind { _ = "STUB: not implemented"; return *new(Kind) }
 
 // IsValid reports whether b is a valid JSON null, boolean, string, or number.
 // The literal must not have surrounding whitespace.
 func (b Literal) IsValid() bool {
+	_ = "STUB: not implemented"
 	// NOTE: The v1 json package is non-compliant with RFC 8259, section 8.1
 	// in that it does not enforce the use of valid UTF-8.
-	return json.Valid(b) && len(b) == len(bytes.TrimSpace(b))
+	return false
 }
 
 // Bool returns the value for a JSON boolean.
 // It returns false if the literal is not a JSON boolean.
-func (b Literal) Bool() bool {
-	return string(b) == "true"
-}
+func (b Literal) Bool() bool { _ = "STUB: not implemented"; return false }
 
 // String returns the unescaped string value for a JSON string.
 // For other JSON kinds, this returns the raw JSON represention.
-func (b Literal) String() (s string) {
-	if b.Kind() == '"' && json.Unmarshal(b, &s) == nil {
-		return s
-	}
-	return string(b)
-}
+func (b Literal) String() (s string) { _ = "STUB: not implemented"; return "" }
 
 // Int returns the signed integer value for a JSON number.
 // It returns 0 if the literal is not a signed integer.
-func (b Literal) Int() (n int64) {
-	if b.Kind() == '0' && json.Unmarshal(b, &n) == nil {
-		return n
-	}
-	return 0
-}
+func (b Literal) Int() (n int64) { _ = "STUB: not implemented"; return 0 }
 
 // Uin returns the unsigned integer value for a JSON number.
 // It returns 0 if the literal is not an unsigned integer.
-func (b Literal) Uint() (n uint64) {
-	if b.Kind() == '0' && json.Unmarshal(b, &n) == nil {
-		return n
-	}
-	return 0
-}
+func (b Literal) Uint() (n uint64) { _ = "STUB: not implemented"; return 0 }
 
 // Float returns the floating-point value for a JSON number.
 // It returns a NaN, +Inf, or -Inf value for any JSON string with the values
 // "NaN", "Infinity", or "-Infinity".
 // It returns 0 for all other cases.
-func (b Literal) Float() (n float64) {
-	if b.Kind() == '0' && json.Unmarshal(b, &n) == nil {
-		return n
-	}
-	if b.Kind() == '"' {
-		switch b.String() {
-		case "NaN":
-			return math.NaN()
-		case "Infinity":
-			return math.Inf(+1)
-		case "-Infinity":
-			return math.Inf(-1)
-		}
-	}
-	return 0
+func (b Literal) Float() (n float64) { _ = "STUB: not implemented"; return 0 }
+
+func (Literal) isValueTrimmed() {
+	_ = "STUB: not implemented"
+
+	// Object is an exact syntactic representation of a JSON object.
+	return
 }
 
-func (Literal) isValueTrimmed() {}
-
-// Object is an exact syntactic representation of a JSON object.
 type Object struct {
 	// Members are the members of a JSON object.
 	// A trailing comma is emitted only if the Value.AfterExtra
@@ -371,67 +247,31 @@ type ObjectMember struct {
 	Name, Value Value
 }
 
-func (obj Object) length() int {
-	return len(obj.Members)
-}
+func (obj Object) length() int { _ = "STUB: not implemented"; return 0 }
 
-func (obj Object) firstValue() *Value {
-	if len(obj.Members) > 0 {
-		return &obj.Members[0].Name
-	}
-	return nil
-}
+func (obj Object) firstValue() *Value { _ = "STUB: not implemented"; return nil }
 
 // allValues iterates all members of the object,
 // interleaved between the member name and the member value.
-func (obj Object) allValues() iter.Seq[*Value] {
-	return func(yield func(*Value) bool) {
-		for i := range obj.Members {
-			if !yield(&obj.Members[i].Name) {
-				return
-			}
-			if !yield(&obj.Members[i].Value) {
-				return
-			}
-		}
-	}
+func (obj Object) allValues() iter.Seq[*Value] { _ = "STUB: not implemented"; return nil }
+
+func (obj Object) lastValue() *Value { _ = "STUB: not implemented"; return nil }
+
+func (obj *Object) beforeExtraAt(i int) *Extra { _ = "STUB: not implemented"; return nil }
+
+func (obj *Object) afterExtra() *Extra { _ = "STUB: not implemented"; return nil }
+
+func (obj Object) clone() ValueTrimmed { _ = "STUB: not implemented"; return *new(ValueTrimmed) }
+
+func (Object) Kind() Kind { _ = "STUB: not implemented"; return *new(Kind) }
+
+func (*Object) isValueTrimmed() {
+	_ = "STUB: not implemented"
+
+	// Array is an exact syntactic representation of a JSON array.
+	return
 }
 
-func (obj Object) lastValue() *Value {
-	if len(obj.Members) > 0 {
-		return &obj.Members[len(obj.Members)-1].Value
-	}
-	return nil
-}
-
-func (obj *Object) beforeExtraAt(i int) *Extra {
-	if i < len(obj.Members) {
-		return &obj.Members[i].Name.BeforeExtra
-	}
-	return &obj.AfterExtra
-}
-
-func (obj *Object) afterExtra() *Extra {
-	return &obj.AfterExtra
-}
-
-func (obj Object) clone() ValueTrimmed {
-	if obj.Members != nil {
-		obj.Members = append([]ObjectMember(nil), obj.Members...)
-		for i := range obj.Members {
-			obj.Members[i].Name = obj.Members[i].Name.Clone()
-			obj.Members[i].Value = obj.Members[i].Value.Clone()
-		}
-	}
-	obj.AfterExtra = copyBytes(obj.AfterExtra)
-	return &obj
-}
-
-func (Object) Kind() Kind { return '{' }
-
-func (*Object) isValueTrimmed() {}
-
-// Array is an exact syntactic representation of a JSON array.
 type Array struct {
 	// Elements are the elements of a JSON array.
 	// A trailing comma is emitted only if the Value.AfterExtra
@@ -444,62 +284,30 @@ type Array struct {
 
 type ArrayElement = Value
 
-func (arr Array) length() int {
-	return len(arr.Elements)
-}
+func (arr Array) length() int { _ = "STUB: not implemented"; return 0 }
 
-func (arr Array) firstValue() *Value {
-	if len(arr.Elements) > 0 {
-		return &arr.Elements[0]
-	}
-	return nil
-}
+func (arr Array) firstValue() *Value { _ = "STUB: not implemented"; return nil }
 
 // allValues iterates all elements of the array.
-func (arr Array) allValues() iter.Seq[*Value] {
-	return func(yield func(*Value) bool) {
-		for i := range arr.Elements {
-			if !yield(&arr.Elements[i]) {
-				return
-			}
-		}
-	}
+func (arr Array) allValues() iter.Seq[*Value] { _ = "STUB: not implemented"; return nil }
+
+func (arr Array) lastValue() *Value { _ = "STUB: not implemented"; return nil }
+
+func (arr *Array) beforeExtraAt(i int) *Extra { _ = "STUB: not implemented"; return nil }
+
+func (arr *Array) afterExtra() *Extra { _ = "STUB: not implemented"; return nil }
+
+func (arr Array) clone() ValueTrimmed { _ = "STUB: not implemented"; return *new(ValueTrimmed) }
+
+func (Array) Kind() Kind { _ = "STUB: not implemented"; return *new(Kind) }
+
+func (*Array) isValueTrimmed() {
+	_ = "STUB: not implemented"
+
+	// composite are the common methods of Object and Array.
+	return
 }
 
-func (arr Array) lastValue() *Value {
-	if len(arr.Elements) > 0 {
-		return &arr.Elements[len(arr.Elements)-1]
-	}
-	return nil
-}
-
-func (arr *Array) beforeExtraAt(i int) *Extra {
-	if i < len(arr.Elements) {
-		return &arr.Elements[i].BeforeExtra
-	}
-	return &arr.AfterExtra
-}
-
-func (arr *Array) afterExtra() *Extra {
-	return &arr.AfterExtra
-}
-
-func (arr Array) clone() ValueTrimmed {
-	if arr.Elements != nil {
-		arr.Elements = append([]Value(nil), arr.Elements...)
-		for i := range arr.Elements {
-			arr.Elements[i] = arr.Elements[i].Clone()
-		}
-	}
-	arr.AfterExtra = copyBytes(arr.AfterExtra)
-	return &arr
-}
-
-func (Array) Kind() Kind { return '[' }
-
-func (*Array) isValueTrimmed() {}
-
-// composite are the common methods of Object and Array.
 type composite interface {
 	Kind() Kind
 	length() int
@@ -517,23 +325,9 @@ type composite interface {
 	afterExtra() *Extra
 }
 
-func hasTrailingComma(comp composite) bool {
-	if last := comp.lastValue(); last != nil && last.AfterExtra != nil {
-		return true
-	}
-	return false
-}
-func setTrailingComma(comp composite, v bool) {
-	if last := comp.lastValue(); last != nil {
-		switch {
-		case v && last.AfterExtra == nil:
-			last.AfterExtra = []byte{}
-		case !v && last.AfterExtra != nil:
-			*comp.afterExtra() = append(last.AfterExtra, *comp.afterExtra()...)
-			last.AfterExtra = nil
-		}
-	}
-}
+func hasTrailingComma(comp composite) bool { _ = "STUB: not implemented"; return false }
+
+func setTrailingComma(comp composite, v bool) { _ = "STUB: not implemented"; return }
 
 var (
 	_ composite = (*Object)(nil)
@@ -548,14 +342,6 @@ type Extra []byte
 
 // IsValid reports whether the whitespace and comments are valid
 // according to the HuJSON grammar.
-func (b Extra) IsValid() bool {
-	n, err := consumeExtra(0, b)
-	return n == len(b) && err == nil
-}
+func (b Extra) IsValid() bool { _ = "STUB: not implemented"; return false }
 
-func copyBytes(b []byte) []byte {
-	if b == nil {
-		return nil
-	}
-	return append([]byte(nil), b...)
-}
+func copyBytes(b []byte) []byte { _ = "STUB: not implemented"; return nil }
